@@ -509,39 +509,40 @@
       .then(data => alert(data.message))
       .catch(err => alert("❌ Error saving changes"));
     }
+    
+  async function deployWebsite() {
+  try {
+    disableTextEdit(); // Disable editing while saving/deploying
 
-    async function deployWebsite() {
-      try {
-        disableTextEdit();
+    // 1️⃣ Save current edits
+    const iframeDoc = document.getElementById('preview-iframe').contentDocument;
+    const updatedHtml = iframeDoc.documentElement.outerHTML;
 
-        // Save current edits first
-        const iframeDoc = document.getElementById('preview-iframe').contentDocument;
-        const updatedHtml = iframeDoc.documentElement.outerHTML;
+    await fetch('/save-edits', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ filename: 'index.html', content: updatedHtml })
+    });
 
-        await fetch('/save-edits', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ filename: 'index.html', content: updatedHtml })
-        });
+    // 2️⃣ Deploy saved files to Azure
+    const res = await fetch('/deploy', { method: 'POST' });
+    const data = await res.json();
 
-        // Deploy saved files to Azure
-        const newTab = window.open('', '_blank');
-        const res = await fetch('/deploy', { method: 'POST' });
-        const data = await res.json();
-
-        if (data.message && data.url) {
-          alert(`✅ ${data.message}\nLive URL: ${data.url}`);
-          // Open live site in new tab
-          newTab.location.href = data.url;
-        } else {
-          alert('❌ Deployment failed');
-        }
-      } catch (err) {
-        console.error(err);
-        alert('❌ Error deploying website');
-      }
+    if (data.success && data.url) {
+      alert(`✅ ${data.message}\nLive URL: ${data.url}`);
+      window.open(data.url, '_blank'); // Open the latest site in a new tab
+    } else {
+      alert('❌ Deployment failed');
+      console.error(data.error || 'Unknown error');
     }
 
+  } catch (err) {
+    console.error(err);
+    alert('❌ Error deploying website');
+  }
+}
+
+   
     function downloadSite() {
       window.location.href = '/download';
     }
